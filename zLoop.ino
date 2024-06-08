@@ -1,89 +1,100 @@
 // Read RTC 2 min
-#define INTERVALBETWEENRTCREAD 120000L
-unsigned long RTCReadMillis = 0;
+#define INTERVALBETWEENRTCREAD 120000UL
+unsigned long RTCReadMillis = STARTMILLIS;
 
 // Read GPS for 5s every 60s
-#define INTERVALBETWEENGPSREAD 60000L
+#define INTERVALBETWEENGPSREAD 60000UL
 unsigned long GPSReadMillis = -INTERVALBETWEENGPSREAD; // Start now
 #define DURATIONGPSREAD 5000L
-unsigned long GPSDurationMillis = 0L;
+unsigned long GPSDurationMillis = STARTMILLIS;
 
 // Reset GPS 60 min
-#define INTERVALBETWEENGPSRESET 3600000L
-unsigned long GPSResetMillis = 0;
+#define INTERVALBETWEENGPSRESET 3600000UL
+unsigned long GPSResetMillis = STARTMILLIS;
 
 // Validate time 50s
-#define INTERVALBETWEENTIMEVALID 50000L
-unsigned long CheckTimeValidMillis = 12000L - INTERVALBETWEENTIMEVALID; // Start after 12s
+#define INTERVALBETWEENTIMEVALID 50000UL
+unsigned long CheckTimeValidMillis = STARTMILLIS + 12000UL - INTERVALBETWEENTIMEVALID; // Start after 12s
 
 // Reference Interval time 60m
 #define INTERVALBETWEENREFTIME 3600000L
-unsigned long ReferenceTimeCheckMillis = 10000L - INTERVALBETWEENREFTIME; // Start after 10s
+unsigned long ReferenceTimeCheckMillis = STARTMILLIS + 10000UL - INTERVALBETWEENREFTIME; // Start after 10s
 
 // Display Summary time 5s
-#define INTERVALBETWEENDISPLAYSUMMARY 5000L
-unsigned long DisplaySummaryMillis = 0;
+#define INTERVALBETWEENDISPLAYSUMMARY 5000UL
+unsigned long DisplaySummaryMillis = STARTMILLIS;
 
 void loop() {
+  globalMillis = millis() + STARTMILLIS;
+  
   // At this 50s interval validate time
-  if ((long)millis() - (long)CheckTimeValidMillis > INTERVALBETWEENTIMEVALID) {
+  if (globalMillis - CheckTimeValidMillis > INTERVALBETWEENTIMEVALID) {
     ValidateTime( &minutesValue, &stepValue);
-    CheckTimeValidMillis = millis();
+    CheckTimeValidMillis = globalMillis;
   }
 
   // Read software serial for (e.g 5s every 60s)
   static bool GPSReadMode = false;
-  if ((long)millis() - (long)GPSReadMillis > INTERVALBETWEENGPSREAD) {
+  if (globalMillis - GPSReadMillis > INTERVALBETWEENGPSREAD) {
     GPSReadMode = true;
-    GPSReadMillis = millis();
-    GPSDurationMillis = millis();
+    GPSReadMillis = globalMillis;
+    GPSDurationMillis = globalMillis;
     StartGPS();
   }
-  if ((long)millis() - (long)GPSDurationMillis > DURATIONGPSREAD) {
+  if (globalMillis - GPSDurationMillis > DURATIONGPSREAD) {
     GPSReadMode = false;
     // Push this so we do it once
-    GPSDurationMillis = millis() + INTERVALBETWEENGPSREAD;
+    GPSDurationMillis = globalMillis + INTERVALBETWEENGPSREAD;
     StopGPS();
   }
   if ( GPSReadMode ) {
     ReadGPS();
   } else {
-    // Move the motor when GPS is not being read, as it uses SoftwareSerial
-    if (minutesValue >= 0) {
-      ProcessMotorMove( minutesValue, stepValue, CheckTimeValidMillis);  
-    }
+    ProcessMotorMove( minutesValue, stepValue, CheckTimeValidMillis);  
   }
 
   // Read Serial, e.g. for setting the time
   ReadInput();
 
   // Reset GPS - hourly
-  if ((long)millis() - (long)GPSResetMillis > INTERVALBETWEENGPSRESET) {
+  if (globalMillis - GPSResetMillis > INTERVALBETWEENGPSRESET) {
     setupGPS();
-    GPSResetMillis = millis();
+    GPSResetMillis = globalMillis;
   }
 
   // Hourly calibration of millis vs GPS
-  if ((long)millis() - (long)ReferenceTimeCheckMillis > INTERVALBETWEENREFTIME) {
+  if (globalMillis - ReferenceTimeCheckMillis > INTERVALBETWEENREFTIME) {
     // If we have a valid reference for calibration
     GetRefCalibration();
-    ReferenceTimeCheckMillis = millis();
+    ReferenceTimeCheckMillis = globalMillis;
   }
 
   // Re-read RTC 2m
-  if ((long)millis() - (long)RTCReadMillis > INTERVALBETWEENRTCREAD) {
+  if (globalMillis - RTCReadMillis > INTERVALBETWEENRTCREAD) {
     setupRTC();
-    RTCReadMillis = millis();
+    RTCReadMillis = globalMillis;
   }
 
   // DisplaySummary 5s
-  if ((long)millis() - (long)DisplaySummaryMillis > INTERVALBETWEENDISPLAYSUMMARY) {
+  if (globalMillis - DisplaySummaryMillis > INTERVALBETWEENDISPLAYSUMMARY) {
     if (LogDisplay) {
       DisplaySummary();
     }
-    DisplaySummaryMillis = millis();
+    DisplaySummaryMillis = globalMillis;
   }
 
+  if (!digitalRead( PIN_IN_FWD) || !digitalRead( PIN_IN_REV) ) {
+    // If time is really old, or never set, then change our known time
+    if (!Timeok) {
+      if (!digitalRead( PIN_IN_FWD) ) {
+        now = now + 30;
+      } else {
+        now = now - 30;
+      }
+      ValidateTime( &minutesValue, &stepValue);
+      DisplaySummary();
+    }
+  }
 }
 
 // Show a page of status info
@@ -91,10 +102,10 @@ void DisplaySummary() {
   Serial.println();
 
   Serial.print(F("Millis: "));
-  Serial.print( millis());
+  Serial.print( globalMillis);
   Serial.print(F(", RTCok: "));
   Serial.print( RTCok);
-  Serial.print(F(", RTCok: "));
+  Serial.print(F(", GPSok: "));
   Serial.print( GPSok);
   Serial.print(F(", Timeok: "));
   Serial.println( Timeok);
@@ -104,6 +115,9 @@ void DisplaySummary() {
 
   Serial.print( F("RTC Time: " ) );
   PrintNow( RTCnow, RTCTimeValidMillis);
+
+  Serial.print( F("Use Time: " ) );
+  PrintNow( now, TimeValidMillis);
 
   Serial.print(F("satelliteMaxIn10m: "));
   Serial.print( satelliteMaxIn10m);
@@ -126,8 +140,14 @@ void DisplaySummary() {
   Serial.print(F(", Target Hand Pos: "));
   Serial.print(minutesValue / 60);
   Serial.print(':');
-  Serial.println(minutesValue % 60);
-
+  Serial.print(minutesValue % 60);
+  Serial.print(' ');
+  if (globalBST) {
+    Serial.print(F("BST"));
+  } else {
+    Serial.print(F("GMT"));
+  }
+  Serial.println();
   Serial.println();
   
 #ifdef OLED_DISPLAY

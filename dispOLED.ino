@@ -18,7 +18,7 @@ void OLEDRefresh() {
   // Landscape 128*64
   // 21 Size 1 characters across, 8 rows (6 pix across, 8 down)
   //    012345678901234567890
-  // 0  NoRTC NoGPS Sat 99
+  // 0  NoRTC NoGPS Sat 99 B
   // 1  2024 12 31 12 59 59
   // 2  11:59 >> 00:59 Fwd/Back
   // 3  St 999999   uS 10000
@@ -42,6 +42,14 @@ void OLEDRefresh() {
   display.print( F("Sat") );
   display.setCursor(16*6, 0*8);
   display.print( satelliteMaxIn10m );
+  // BST
+  display.setCursor(19*6, 0*8);
+  if (globalBST) {
+    display.print('B');
+  } else {
+    display.print('G');
+  }
+
   // Date/Time (BST)
   display.setCursor( 0*6, 1*8);
   display.print( realTime.Year());

@@ -88,7 +88,7 @@ int ReadGPS() {
         }
         // If $ then set read time
         if (x == '$') {
-          readtime = millis();
+          readtime = STARTMILLIS + millis(); // Use precise millis, not the globalMillis
         }
       } else {
         break; // Start processing at the end of each line
@@ -274,9 +274,9 @@ void GPSParse( char *buffer, unsigned long readtime ) {
           satelliteMaxIn10m = satellitecount;
         }
         // Reset max every 10 minutes
-        if (millis() - satelliteCountResetTime > 600000L) {
+        if (globalMillis - satelliteCountResetTime > 600000L) {
           satelliteMaxIn10m = satellitecount;
-          satelliteCountResetTime = millis();
+          satelliteCountResetTime = globalMillis;
         }
       }
     }

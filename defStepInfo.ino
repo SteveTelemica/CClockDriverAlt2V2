@@ -9,8 +9,8 @@
 // Milliseconds per step 9.4 (approx) or 20 approx
 #define MICROSPERSTEP (1000000L/STEPSPERSECOND)
 // 1/106.7s = 9400uS step interval
-// Max speed timing, 20 times faster
-#define MICROSPERSTEPMIN (MICROSPERSTEP/20L)
+// Max speed timing, 30 times faster
+#define MICROSPERSTEPMIN (MICROSPERSTEP/30L)
 // Time related constants
 #define MINUTESPERDAY 1440
 #define MINUTESPER12H  720

@@ -1,3 +1,5 @@
+#ifdef STD_DS1302
+
 bool setupRTC() {
   if (LogRTC) Serial.println( F("R Init/Read"));
   RTC.Begin();
@@ -37,7 +39,7 @@ bool setupRTC() {
          (RTCnow.Day() <= 31       )    ) {
       // Drive time into the system: setTimeAndOffset();
       RTCok = true;
-      RTCTimeValidMillis = millis();
+      RTCTimeValidMillis = globalMillis;
       if (LogStatus) {
         Serial.print( F("S RTC Time: " ) );
         PrintNow( RTCnow, RTCTimeValidMillis);
@@ -55,3 +57,51 @@ bool setupRTC() {
     }
   }
 }
+
+void setRTC( RtcDateTime intime) {
+  if (LogRTC) Serial.println( F("R Set RTC"));
+  RTC.SetDateTime(intime);
+}
+#else
+bool setupRTC() {
+  if (LogRTC) Serial.println( F("R Init/Read"));
+  // Set the clock to run-mode, and disable the write protection
+  RTC.halt(false);
+  RTC.writeProtect(false);
+  // Read time
+  Time t;
+  t = RTC.getTime();
+  if (t.year > 2023 && t.mon <= 12 && t.date <= 31) {
+    if (LogRTC) Serial.println( F("R valid" ) );
+    RTCnow  = RtcDateTime(  t.year - 2000, // 4 dig
+                            t.mon,
+                            t.date,
+                            t.hour,
+                            t.min,
+                            t.sec );
+    RTCok = true;
+    RTCTimeValidMillis = globalMillis;
+    if (LogStatus) {
+      Serial.print( F("S RTC Time: " ) );
+      PrintNow( RTCnow, RTCTimeValidMillis);
+    }
+  } else {
+    RTCok = false;
+    if (LogError) Serial.println( F("E RTC time invalid" ) );
+    if (LogRTC) {
+      Serial.print( F("R was: " ) );
+      Serial.print( t.date );
+      Serial.print( "/" );
+      Serial.print( t.mon );
+      Serial.print( "/" );
+      Serial.println( t.year );
+    }
+  }
+}
+
+void setRTC( RtcDateTime intime) {
+  if (LogRTC) Serial.println( F("R Set RTC"));
+  RTC.setTime(intime.Hour(), intime.Minute(), intime.Second() );     // Set the time to hh, mm, ss (24hr format)
+  RTC.setDate(intime.Day(), intime.Month(), intime.Year() );   // Set the date to dd, MM, YYYY
+}
+#endif

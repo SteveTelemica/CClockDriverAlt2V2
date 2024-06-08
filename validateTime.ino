@@ -4,7 +4,7 @@
 // If neither are valid, we carry on counting millisecs from last
 void ValidateTime( int *handposmin, int *handposstep) {
   int AdjTime = 0;
-  if (GPSok && millis() - GPSTimeValidMillis < 3600000L) {
+  if (GPSok && globalMillis - GPSTimeValidMillis < 3600000L) {
     now = GPSnow;
     TimeValidMillis = GPSTimeValidMillis;
     Timeok = true;
@@ -12,7 +12,7 @@ void ValidateTime( int *handposmin, int *handposstep) {
 
   } else {
     GPSok = false;
-    if (RTCok && millis() - RTCTimeValidMillis < 3600000L) {
+    if (RTCok && globalMillis - RTCTimeValidMillis < 3600000L) {
       now = RTCnow;
       TimeValidMillis = RTCTimeValidMillis;
       Timeok = true;
@@ -22,16 +22,12 @@ void ValidateTime( int *handposmin, int *handposstep) {
       if (LogError) Serial.println( F("E Old time "));
       // No good time, but check for millis rollover and invalidate
 #define TIMEROLLOVER 2000000000L // 23 Days
-      if ((long)millis() - (long)TimeValidMillis > TIMEROLLOVER) {
+      if ((long)globalMillis - (long)TimeValidMillis > TIMEROLLOVER) {
         if (LogError) Serial.println( F("E Old time too old "));
         Timeok = false;
-        // Invalid time - move hands to 12:00
-        *handposmin = -1;
-        *handposstep = 0;
-        return; // Don't print time
       } else {
         // Get hours difference from last good time
-        int hourdiff = (millis() - TimeValidMillis) / 3600000L;
+        int hourdiff = (globalMillis - TimeValidMillis) / 3600000L;
         // Adjust known time by this times: millisAdjustment
         AdjTime = hourdiff * millisAdjustment;
       }
@@ -41,18 +37,20 @@ void ValidateTime( int *handposmin, int *handposstep) {
   if (LogStatus) PrintNow( now, TimeValidMillis);
   // Return Minute, Steps and the offset to add TimeValidMillis
   // Add time offset up to now
-  long addTimeOffset = (long)millis() - (long)TimeValidMillis;
+  unsigned long addTimeOffset = globalMillis - TimeValidMillis;
   // Also if millisAdjustment is positive, crystal is running fast, so slow down
-  realTime = now + ( (addTimeOffset - AdjTime)/ (long)1000L ); // (ignore millisec)
+  realTime = now + ( (addTimeOffset - AdjTime)/ 1000UL ); // (ignore millisec)
 
   // Set RTC from GPS if valid
   if (GPSok) {
-    RTC.SetDateTime(realTime);
+    setRTC( realTime);
+    // RTC.SetDateTime(realTime);
     if (LogRTC) Serial.print( F("R Set RTC from GPS "));
   }
   
   // Convert to Local Time
-  int bstOffset = isBST( now.Year(), now.Month(), now.Day(), now.Hour() ) ? 3600 : 0;
+  globalBST = isBST( now.Year(), now.Month(), now.Day(), now.Hour() );
+  int bstOffset = globalBST ? 3600 : 0;
   realTime = realTime + bstOffset;
   int minutes = (realTime.Hour()*60 + realTime.Minute() ) % 720;
   int stepvalue = (realTime.Second() * STEPSPERMINUTE ) / 60; // Set to the offset from read-time (ignore millisec)

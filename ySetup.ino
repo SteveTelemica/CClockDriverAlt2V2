@@ -30,4 +30,15 @@ void setup() {
 #ifdef OLED_DISPLAY
   OLEDInit(); 
 #endif
+
+  // Variable 'now' should default to any date, but set time from EEPROM value
+  // So it carries on from where it left off after power cut
+  // Then it will 
+  // (Use 1 Jan to avoid BST issues)
+  now = RtcDateTime( 00,
+                     01,
+                     01,
+                     handpositionmin / 60,
+                     handpositionmin % 60,
+                     0);
 }

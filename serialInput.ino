@@ -28,7 +28,8 @@ void ReadInput() {
       Serial.println( F("RTC set from input") );
       RtcDateTime input = RtcDateTime(SerialInputBuffer+1, 
                                       SerialInputBuffer+13);
-      RTC.SetDateTime(input);
+      // Set time and read it back
+      setRTC( input);
       setupRTC();
     }
     // LG or Lg etc. to activate/deactivate GPS/RTC Logging

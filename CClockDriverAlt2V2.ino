@@ -34,16 +34,28 @@
 #define PIN_RTC_DAT 7
 #define PIN_RTC_RST 8
 
+//#define  // Undefine to use the rinkydink alternative
+
+#ifdef STD_DS1302
 #include <Wire.h>
+// Standard DS1302 Library
 #include <ThreeWire.h>   // Support for 1302
 #include <RtcDS1302.h>   // Support for 1302
+ThreeWire myWire( PIN_RTC_DAT, PIN_RTC_CLK, PIN_RTC_RST ); // IO, SCLK, CE
+RtcDS1302<ThreeWire> RTC(myWire);
+#else
+// Try DS1302 lib http://www.rinkydinkelectronics.com/library.php?id=5
+#include <DS1302.h>
+#include <RtcDateTime.h> // From the RtcDS1302 library
+DS1302 RTC(PIN_RTC_RST, PIN_RTC_DAT, PIN_RTC_CLK); // CE, IO, CLK);
+#endif
 
 // Customise this and set buffer size to 150 characters
 #include <SoftwareSerial.h>
 
 // Logging Control
 bool LogGPS = false;
-bool LogRTC = false;
+bool LogRTC = true;
 bool LogMotor = false;
 bool LogError = true;
 bool LogStatus = true;
@@ -52,9 +64,6 @@ bool LogDisplay = true;
 //      Lg, Lr, Lm, Le, Ls, Ld, La(ll) to disable.
 
 SoftwareSerial *pGPSSerial = NULL;
-
-ThreeWire myWire( PIN_RTC_DAT, PIN_RTC_CLK, PIN_RTC_RST ); // IO, SCLK, CE
-RtcDS1302<ThreeWire> RTC(myWire);
 
 
 // ************************************************* OLED 128x64 *************************
@@ -76,20 +85,21 @@ RtcDS1302<ThreeWire> RTC(myWire);
 Adafruit_SSD1306 display(OLED_RESET);
 #endif
 // *****************************************************************************************
-
+unsigned long globalMillis = 0;
+#define STARTMILLIS 0x0UL // 0xFFF6D83FUL // define to test rollovers of millis(), set to 0 normally
 RtcDateTime RTCnow;
 bool RTCok = false;
-unsigned long RTCTimeValidMillis;
+unsigned long RTCTimeValidMillis = 0;
 RtcDateTime GPSnow;
 bool GPSok = false;
-unsigned long GPSTimeValidMillis;
+unsigned long GPSTimeValidMillis = 0;
 RtcDateTime now;
 // When we have a valid time, either RTC or GPS
 bool Timeok = false;
-unsigned long TimeValidMillis;
+unsigned long TimeValidMillis = STARTMILLIS;
 // Use GPS time to calibrate millis() hourly
 RtcDateTime GPSref;
-unsigned long GPSTimeReference;
+unsigned long GPSTimeReference = 0;
 int satelliteMaxIn10m = 0;
 // Local time for display
 RtcDateTime realTime;
@@ -101,7 +111,7 @@ long StepsToDo = 0;
 long StepInterval = 0;
 bool stepBack = false;
 long stepsNeeded = 0;
-
+bool globalBST = false;
 // Value verified, unless -1
 int minutesValue;
 int stepValue;
@@ -129,7 +139,7 @@ void PrintNow( RtcDateTime n, unsigned long valid) {
   Serial.print( ':' );
   Serial.print( n.Second() );
   Serial.print( '+' );
-  Serial.print( millis() - valid );
+  Serial.print( globalMillis - valid );
   Serial.print( F("ms at millis ") );
-  Serial.println( millis() );
+  Serial.println( globalMillis );
 }

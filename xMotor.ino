@@ -76,7 +76,7 @@ void ProcessMotorMove(int thisMinute, int thisStep, unsigned long CheckTimeValid
     }
   }
 
-  long adjustSteps = ( ( (long)(millis() - CheckTimeValidMillis) ) * STEPSPERSECOND )/ 1000L;
+  long adjustSteps = ( ( (long)(globalMillis - CheckTimeValidMillis) ) * STEPSPERSECOND )/ 1000L;
 
   stepsNeeded = ( ((long)thisMinute * STEPSPERMINUTE + thisStep + adjustSteps) - 
                        ((long)handpositionmin * STEPSPERMINUTE + handpositionstep) );
@@ -154,14 +154,18 @@ void ProcessMotorMove(int thisMinute, int thisStep, unsigned long CheckTimeValid
 
   // If the fwd/rev buttons are pressed, move motor without recording position
   if (!digitalRead( PIN_IN_FWD) || !digitalRead( PIN_IN_REV) ) {
-    if (!digitalRead( PIN_IN_FWD) ) {
-      SetDirection( LOW);
-    } else {
-      SetDirection( HIGH);
-    }
-    // Move for 20ms
-    for (int p = (20000 / MICROSPERSTEPMIN); p--; p == 0) {
-      StepMotor( MICROSPERSTEPMIN);
+    // Unless time is really old
+    if (Timeok) {
+      // Jump motor forward or back
+      if (!digitalRead( PIN_IN_FWD) ) {
+        SetDirection( LOW);
+      } else {
+        SetDirection( HIGH);
+      }
+      // Move fast for 20ms
+      for (int p = (20000 / (MICROSPERSTEPMIN/4)); p--; p == 0) {
+        StepMotor( MICROSPERSTEPMIN/4);
+      }
     }
   }
 }
