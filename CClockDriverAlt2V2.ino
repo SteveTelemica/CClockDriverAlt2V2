@@ -34,7 +34,7 @@
 #define PIN_RTC_DAT 7
 #define PIN_RTC_RST 8
 
-//#define  // Undefine to use the rinkydink alternative
+//#define STD_DS1302 // Undefine to use the rinkydink alternative
 
 #ifdef STD_DS1302
 #include <Wire.h>
